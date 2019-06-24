@@ -10,6 +10,7 @@ require (
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c
 	github.com/jackwakefield/gopac v1.0.2
 	github.com/robertkrimen/otto v0.0.0-20180617131154-15f95af6e78d // indirect
+	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/zalando/go-keyring v0.0.0-20190603084339-02404fc6afd1
 	golang.org/x/crypto v0.0.0-20190618222545-ea8f1a30c443 // indirect
