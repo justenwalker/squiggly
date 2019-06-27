@@ -142,7 +142,7 @@ func (s *Server) dialer(network, addr string) (net.Conn, error) {
 	}
 	// Prevent upstream proxy from being re-directed
 	if purl == nil || purl.Host == addr {
-		s.logf("dialer: DIRECT -> ADDR '%s'")
+		s.logf("dialer: DIRECT -> ADDR '%s'", addr)
 		return net.Dial(network, addr)
 	}
 	s.logf("dialer: PROXY '%s' -> ADDR '%s'", purl.Host, addr)
