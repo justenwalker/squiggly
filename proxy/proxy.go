@@ -57,11 +57,11 @@ func (s *Server) proxyHost(host string) (string, error) {
 	if s.proxyFunc == nil {
 		return host, nil
 	}
-	req,err := http.NewRequest(http.MethodGet,fmt.Sprintf("http://%s/", host),nil)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/", host), nil)
 	if err != nil {
 		return "", fmt.Errorf("host '%s' parse error : %v", host, err)
 	}
-	
+
 	proxy, err := s.proxy(req)
 	if err != nil {
 		return "", err
@@ -76,7 +76,7 @@ func (s *Server) getProxyHost(host string) (*url.URL, error) {
 	if s.proxyFunc == nil {
 		return nil, nil
 	}
-	req,err := http.NewRequest(http.MethodGet,fmt.Sprintf("http://%s/", host),nil)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/", host), nil)
 	if err != nil {
 		return nil, fmt.Errorf("host '%s' parse error : %v", host, err)
 	}
@@ -103,18 +103,18 @@ func New(opts ...Option) *Server {
 		server: goproxy.NewProxyHttpServer(),
 	}
 	srv.server.Tr = &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL,error) {
-			u,err := srv.proxy(req)
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			u, err := srv.proxy(req)
 			if err != nil {
-				return nil,err
+				return nil, err
 			}
 			if u == nil {
-				return nil,nil
+				return nil, nil
 			}
 			if srv.proxyAuth != nil {
-				u.User = url.UserPassword(srv.proxyAuth.Username,srv.proxyAuth.Password)
+				u.User = url.UserPassword(srv.proxyAuth.Username, srv.proxyAuth.Password)
 			}
-			return u,nil
+			return u, nil
 		},
 	}
 	srv.server.ConnectDial = srv.dialer
@@ -131,22 +131,22 @@ func (s *Server) auth(req *http.Request) {
 	if s.proxyAuth == nil {
 		return
 	}
-	req.Header.Set("Proxy-Authorization", fmt.Sprintf("Basic %s",s.proxyAuth.Encoded()) )
+	req.Header.Set("Proxy-Authorization", fmt.Sprintf("Basic %s", s.proxyAuth.Encoded()))
 }
 
 func (s *Server) dialer(network, addr string) (net.Conn, error) {
-	purl,err := s.getProxyHost(addr)
+	purl, err := s.getProxyHost(addr)
 	if err != nil {
 		s.logf("dialer: getProxyHost ERROR: '%s'", err)
-		return nil,err
+		return nil, err
 	}
 	// Prevent upstream proxy from being re-directed
 	if purl == nil || purl.Host == addr {
 		s.logf("dialer: DIRECT -> ADDR '%s'")
 		return net.Dial(network, addr)
 	}
-	s.logf("dialer: PROXY '%s' -> ADDR '%s'", purl.Host,addr)
-	dialer := s.server.NewConnectDialToProxyWithHandler( purl.String(), func(req *http.Request) {
+	s.logf("dialer: PROXY '%s' -> ADDR '%s'", purl.Host, addr)
+	dialer := s.server.NewConnectDialToProxyWithHandler(purl.String(), func(req *http.Request) {
 		s.auth(req)
 	})
 	if dialer == nil {
