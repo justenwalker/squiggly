@@ -7,17 +7,15 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/justenwalker/squiggly/logging"
 )
 
 // DynamicConfig allows dynamic configuration of the proxy server settings during runtime
 type DynamicConfig struct {
-	Logger Logger
+	Logger logging.Logger
 	mu     sync.RWMutex
 	pc     atomic.Value
-}
-
-type Logger interface {
-	Log(msg string)
 }
 
 // BasicAuth represents the username and password

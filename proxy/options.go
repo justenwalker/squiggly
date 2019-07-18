@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/justenwalker/squiggly/logging"
 )
 
 // Option configures the proxy server
@@ -41,12 +43,13 @@ func ProxyAuth(auth *BasicAuth) Option {
 }
 
 // Log sets the logger on the server for debug purposes
-func Log(logger Logger) Option {
+func Log(logger logging.Logger) Option {
 	return func(s *Server) {
 		s.logger = logger
 		s.server.Verbose = (logger != nil)
 		if logger != nil {
-			s.server.Logger = log.New(newLogWriter(logger), "goproxy: ", 0)
+			s.logWriter = logging.NewLogWriter(s.logger)
+			s.server.Logger = log.New(s.logWriter, "goproxy: ", 0)
 		}
 	}
 }

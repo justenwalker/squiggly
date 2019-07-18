@@ -6,17 +6,14 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/justenwalker/squiggly/logging"
 	"gopkg.in/elazarl/goproxy.v1"
 )
 
-// Logger logs a debug message
-type Logger interface {
-	Log(msg string)
-}
-
 // Server is a proxy server
 type Server struct {
-	logger    Logger
+	logger    logging.Logger
+	logWriter *logging.LogWriter
 	proxyFunc func(req *http.Request) (*url.URL, error)
 	proxyAuth *BasicAuth
 	server    *goproxy.ProxyHttpServer
@@ -24,6 +21,14 @@ type Server struct {
 
 func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	s.server.ServeHTTP(resp, req)
+}
+
+// Close the server down and flush logs
+func (s *Server) Close() error {
+	if s.logWriter != nil {
+		return s.logWriter.Flush()
+	}
+	return nil
 }
 
 func (s *Server) logf(msg string, v ...interface{}) {

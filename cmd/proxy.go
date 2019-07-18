@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/justenwalker/squiggly/config"
+	"github.com/justenwalker/squiggly/logging"
 	"github.com/justenwalker/squiggly/pac"
 	"github.com/justenwalker/squiggly/proxy"
 	"github.com/spf13/cobra"
@@ -68,13 +69,16 @@ func runProxy() error {
 		options = append(options, proxy.ProxyAuth(auth))
 	}
 	if verbose {
-		options = append(options, proxy.Log(logger{}))
-		cfg.Logger = logger{}
+		logger := &logging.StandardLogger{}
+		options = append(options, proxy.Log(logger))
+		cfg.Logger = logger
 	}
+	prx := proxy.New(options...)
 	srv := &http.Server{
 		Addr:    address,
-		Handler: proxy.New(options...),
+		Handler: prx,
 	}
+	defer prx.Close()
 	// Listen for Interrupt
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
