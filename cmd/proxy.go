@@ -69,6 +69,7 @@ func runProxy() error {
 	}
 	if verbose {
 		options = append(options, proxy.Log(logger{}))
+		cfg.Logger = logger{}
 	}
 	srv := &http.Server{
 		Addr:    address,

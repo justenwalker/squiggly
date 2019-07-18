@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,14 +11,33 @@ import (
 
 // DynamicConfig allows dynamic configuration of the proxy server settings during runtime
 type DynamicConfig struct {
-	mu sync.RWMutex
-	pc atomic.Value
+	Logger Logger
+	mu     sync.RWMutex
+	pc     atomic.Value
+}
+
+type Logger interface {
+	Log(msg string)
 }
 
 // BasicAuth represents the username and password
 type BasicAuth struct {
 	Username string
 	Password string
+}
+
+func (c *DynamicConfig) logf(format string, v ...interface{}) {
+	if c.Logger == nil {
+		return
+	}
+	c.Logger.Log(fmt.Sprintf(format, v...))
+}
+
+func (c *DynamicConfig) logln(v ...interface{}) {
+	if c.Logger == nil {
+		return
+	}
+	c.Logger.Log(fmt.Sprint(v...))
 }
 
 // New creates a new DynamicConfig
@@ -38,6 +58,7 @@ func (c *DynamicConfig) SetBlacklist(blacklist []string) {
 	for _, b := range blacklist {
 		bm[strings.TrimSpace(strings.ToLower(b))] = struct{}{}
 	}
+	c.logf("config: blacklist: %v", blacklist)
 	pc.Blacklist = bm
 	c.pc.Store(pc)
 }
@@ -47,6 +68,11 @@ func (c *DynamicConfig) SetProxyEnabled(enabled bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	pc := c.cloneProxyConfig()
+	if enabled {
+		c.logln("config: proxy enabled")
+	} else {
+		c.logln("config: proxy disabled")
+	}
 	pc.Disabled = !enabled
 	c.pc.Store(pc)
 }
@@ -55,6 +81,11 @@ func (c *DynamicConfig) SetProxyEnabled(enabled bool) {
 func (c *DynamicConfig) SetProxy(proxy func(req *http.Request) (*url.URL, error)) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if proxy == nil {
+		c.logln("config: proxy removed")
+	} else {
+		c.logln("config: proxy added")
+	}
 	pc := c.cloneProxyConfig()
 	pc.Func = proxy
 	c.pc.Store(pc)
