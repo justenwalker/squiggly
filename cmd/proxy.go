@@ -86,12 +86,16 @@ func runProxy() error {
 		for {
 			select {
 			case <-time.After(interval):
-				if _, err := proxyPAC.Refresh(); err != nil && !proxyDisabled {
-					proxyDisabled = true
-					cfg.SetProxyEnabled(false)
-				} else if proxyDisabled {
-					proxyDisabled = false
-					cfg.SetProxyEnabled(true)
+				if _, err := proxyPAC.Refresh(); err != nil { // PAC unreachable
+					if !proxyDisabled {
+						proxyDisabled = true
+						cfg.SetProxyEnabled(false)
+					}
+				} else { // PAC is reachable
+					if proxyDisabled {
+						proxyDisabled = false
+						cfg.SetProxyEnabled(true)
+					}
 				}
 			case <-quitCh:
 				return
