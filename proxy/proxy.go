@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
+	"github.com/justenwalker/squiggly/auth"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,7 +17,7 @@ type Server struct {
 	logger    logging.Logger
 	logWriter *logging.LogWriter
 	proxyFunc func(req *http.Request) (*url.URL, error)
-	proxyAuth *BasicAuth
+	proxyAuth *auth.Auth
 	server    *goproxy.ProxyHttpServer
 }
 
@@ -93,9 +95,6 @@ func (s *Server) proxy(req *http.Request) (*url.URL, error) {
 		return nil, nil
 	}
 	u, err := s.proxyFunc(req)
-	if u != nil {
-		s.auth(req)
-	}
 	if err == nil {
 		s.logf("PROXY SELECT: %v", u)
 	}
@@ -108,19 +107,7 @@ func New(opts ...Option) *Server {
 		server: goproxy.NewProxyHttpServer(),
 	}
 	srv.server.Tr = &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			u, err := srv.proxy(req)
-			if err != nil {
-				return nil, err
-			}
-			if u == nil {
-				return nil, nil
-			}
-			if srv.proxyAuth != nil {
-				u.User = url.UserPassword(srv.proxyAuth.Username, srv.proxyAuth.Password)
-			}
-			return u, nil
-		},
+		Dial: srv.dialer,
 	}
 	srv.server.ConnectDial = srv.dialer
 	for _, opt := range opts {
@@ -130,13 +117,6 @@ func New(opts ...Option) *Server {
 	srv.server.OnRequest().DoFunc(srv.onRequest)
 	srv.server.OnResponse().DoFunc(srv.onResponse)
 	return srv
-}
-
-func (s *Server) auth(req *http.Request) {
-	if s.proxyAuth == nil {
-		return
-	}
-	req.Header.Set("Proxy-Authorization", fmt.Sprintf("Basic %s", s.proxyAuth.Encoded()))
 }
 
 func (s *Server) dialer(network, addr string) (net.Conn, error) {
@@ -151,11 +131,10 @@ func (s *Server) dialer(network, addr string) (net.Conn, error) {
 		return net.Dial(network, addr)
 	}
 	s.logf("dialer: PROXY '%s' -> ADDR '%s'", purl.Host, addr)
-	dialer := s.server.NewConnectDialToProxyWithHandler(purl.String(), func(req *http.Request) {
-		s.auth(req)
-	})
-	if dialer == nil {
-		panic("nil dialer, invalid uri?")
+	dialer := &ProxyDialer{
+		Logger: s.logger,
+		Host:   purl,
+		Auth:   s.proxyAuth,
 	}
-	return dialer(network, addr)
+	return dialer.DialContext(context.Background(), network, addr)
 }

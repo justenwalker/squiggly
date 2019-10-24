@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/justenwalker/squiggly/auth"
+
 	"github.com/justenwalker/squiggly/logging"
 	"github.com/justenwalker/squiggly/pac"
 	"github.com/justenwalker/squiggly/proxy"
@@ -21,6 +23,8 @@ var (
 	service  string
 	username string
 	password string
+	realm    string
+	krb5conf string
 	pacURL   string
 	address  string
 	verbose  bool
@@ -45,6 +49,8 @@ func init() {
 	proxyCmd.Flags().StringVarP(&address, "address", "a", "localhost:8800", "listen address for the proxy server")
 	proxyCmd.Flags().StringVarP(&service, "service", "s", defaultService, "service name, used to distinguish between auth configurations")
 	proxyCmd.Flags().StringVarP(&username, "user", "u", "", "user name, used to log into proxy servers. Omit to use an unauthenticated proxy.")
+	proxyCmd.Flags().StringVarP(&realm, "realm", "r", "", "realm for kerberos/negotiate authentication")
+	proxyCmd.Flags().StringVarP(&krb5conf, "krb5conf", "k", "", "kerberos config")
 }
 
 func runProxy() error {
@@ -55,15 +61,24 @@ func runProxy() error {
 	options := []proxy.Option{
 		proxy.Proxy(proxyPAC.Proxy),
 	}
+	logger := &logging.StandardLogger{}
 	if username != "" {
-		auth, err := proxyAuth(service, username)
+		cred, err := proxyAuth(service, username)
 		if err != nil {
 			return err
 		}
-		options = append(options, proxy.ProxyAuth(auth))
+		cred.Realm = realm
+		sp, err := auth.NewSPNEGO(cred, krb5conf)
+		if err != nil {
+			return err
+		}
+		pauth := auth.NewAuth(cred, sp)
+		options = append(options, proxy.ProxyAuth(pauth))
+		if verbose {
+			pauth.Logger = logger
+		}
 	}
 	if verbose {
-		logger := &logging.StandardLogger{}
 		options = append(options, proxy.Log(logger))
 	}
 	prx := proxy.New(options...)

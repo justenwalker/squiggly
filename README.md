@@ -32,12 +32,20 @@ SQUIGGLY_PROXY_USERNAME=${PROXY_USERNAME:-"$USER"}
 SQUIGGLY_PAC_URL=http://example.com/proxy.pac
 SQUIGGLY_PIDFILE=$HOME/.squiggly
 SQUIGGLY_LOGFILE=$HOME/squiggly.log
+SQUIGGLY_KRB5_REALM=realm.example.com
+SQUIGGLY_KRB5_CONF=/etc/krb5.conf
 
 run_proxy() {
   echo "Running Squiggly"
-  squiggly proxy --address "localhost:$SQUIGGLY_PROXY_PORT" --pac "${SQUIGGLY_PAC_URL}" --verbose --user "${SQUIGGLY_PROXY_USERNAME}" > ${SQUIGGLY_LOGFILE} 2>&1 &
+  squiggly proxy \
+      --address "localhost:$SQUIGGLY_PROXY_PORT" \
+      --pac "http://wmtpac.wal-mart.com/proxies/anycast-universal.pac" \
+      --user "${SQUIGGLY_PROXY_USERNAME}" \
+      --realm "${SQUIGGLY_KRB5_REALM}" \
+      --krb5conf "${SQUIGGLY_KRB5_CONF}" \
+      --verbose > ${SQUIGGLY_LOGFILE} 2>&1 &
   echo "$!" > $SQUIGGLY_PIDFILE
-  disown
+  disown '%%'
 }
 
 if [ -r $SQUIGGLY_PIDFILE ]; then
@@ -51,12 +59,12 @@ fi
 
 # Set proxy environment variables
 export HTTP_PROXY=http://localhost:$SQUIGGLY_PROXY_PORT
-export HTTPS_PROXY=http://localhost:$SQUIGGLY_PROXY_PORT
-export NO_PROXY="localhost,127.0.0.1,${HOST},127.0.0.1"
+export HTTPS_PROXY=${HTTP_PROXY}
+export NO_PROXY="localhost,127.0.0.1,${HOST}"
 
-export http_proxy=http://localhost:$SQUIGGLY_PROXY_PORT
-export https_proxy=http://localhost:$SQUIGGLY_PROXY_PORT
-export no_proxy=localhost,127.0.0.1,${HOST},127.0.0.1
+export http_proxy=${HTTP_PROXY}
+export https_proxy=${HTTP_PROXY}
+export no_proxy=${NO_PROXY}
 ```
 
 After you open a new terminal, all your command-line application that support the standard proxy environment variables should start proxying through squiggly to your upstreams defined in the PAC.
@@ -97,12 +105,14 @@ Usage:
   squiggly proxy [flags]
 
 Flags:
-  -a, --address string      listen address for the proxy server (default "localhost:8800")
-  -h, --help                help for proxy
-  -p, --pac string          url to the proxy auto config (PAC) file
-  -s, --service string      service name, used to distinguish between auth configurations (default "squiggly")
-  -u, --user string         user name, used to log into proxy servers (default "juw0006")
-  -v, --verbose             enable verbose logging
+  -a, --address string    listen address for the proxy server (default "localhost:8800")
+  -h, --help              help for proxy
+  -k, --krb5conf string   kerberos config
+  -p, --pac string        url to the proxy auto config (PAC) file
+  -r, --realm string      realm for kerberos/negotiate authentication
+  -s, --service string    service name, used to distinguish between auth configurations (default "squiggly")
+  -u, --user string       user name, used to log into proxy servers. Omit to use an unauthenticated proxy.
+  -v, --verbose           enable verbose logging
 ```
 
 ### Example
@@ -113,3 +123,26 @@ Runs the proxy on the default address (`localhost:8800`) using the default servi
 $ squiggly proxy --pac http://example.com/proxy.pac --verbose --user myusername
 ```
 
+## Kerberos Config
+
+There is a utility method for writing a default `krb5.conf` that uses dns to discover the servers, to make it easier to configure the Kerberos auth.
+It will probably need some modifications to work correctly, but it might be a good starting point.
+
+### Usage
+
+```
+Generate a krb5.conf
+
+Usage:
+  squiggly krb5conf [flags]
+
+Flags:
+  -h, --help           help for krb5conf
+  -r, --realm string   kerberos realm
+```
+
+### Example
+
+```bash
+$ squiggly krb5conf --realm REALM.EXAMPLE.COM > krb5.conf
+```
