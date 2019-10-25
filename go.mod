@@ -13,7 +13,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/zalando/go-keyring v0.0.0-20190603084339-02404fc6afd1
-	golang.org/x/crypto v0.0.0-20190618222545-ea8f1a30c443 // indirect
+	golang.org/x/crypto v0.0.0-20190618222545-ea8f1a30c443
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 )

@@ -59,7 +59,7 @@ export https_proxy=http://localhost:$SQUIGGLY_PROXY_PORT
 export no_proxy=localhost,127.0.0.1,${HOST},127.0.0.1
 ```
 
-After you open a new terminal, all your command-line application that support the standard proxyt environment variables should start proxying through squiggly to your upstreams defined in the PAC.
+After you open a new terminal, all your command-line application that support the standard proxy environment variables should start proxying through squiggly to your upstreams defined in the PAC.
 
 ## Authenticate
 
@@ -99,7 +99,6 @@ Usage:
 Flags:
   -a, --address string      listen address for the proxy server (default "localhost:8800")
   -h, --help                help for proxy
-  -i, --interval duration   time between checks of the PAC file to turn off the proxy (default 10s)
   -p, --pac string          url to the proxy auto config (PAC) file
   -s, --service string      service name, used to distinguish between auth configurations (default "squiggly")
   -u, --user string         user name, used to log into proxy servers (default "juw0006")
@@ -108,7 +107,7 @@ Flags:
 
 ### Example
 
-Runs the proxy on the default address (`localhost:8800`) using the default check interval (`10s`) and the default service name (`squiggly`) to retreive proxy authentication from the keyring.
+Runs the proxy on the default address (`localhost:8800`) using the default service name (`squiggly`) to retreive proxy authentication from the keyring.
 
 ```bash
 $ squiggly proxy --pac http://example.com/proxy.pac --verbose --user myusername

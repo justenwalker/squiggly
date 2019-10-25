@@ -19,9 +19,8 @@ const lastModifiedFormat = "2006-01-02 15:04:05 GMT"
 
 var noProxyTransport http.RoundTripper = &http.Transport{
 	DialContext: (&net.Dialer{
-		Timeout:   30 * time.Second,
+		Timeout:   1 * time.Second,
 		KeepAlive: 30 * time.Second,
-		DualStack: true,
 	}).DialContext,
 	MaxIdleConns:          0,
 	IdleConnTimeout:       0 * time.Second,
@@ -38,7 +37,8 @@ type PAC struct {
 	parsed       *gopac.Parser
 	etag         string
 	lastModified time.Time
-	mu           sync.Mutex
+	lastRefresh  time.Time
+	mu           sync.RWMutex
 }
 
 // Proxy returns the proxy URL for a request, or nil if the request should not be proxied
@@ -80,9 +80,17 @@ func (r *PAC) ProxyForRequest(url, host string) ([]Proxy, error) {
 
 // Proxy function to be used in a transport
 func (r *PAC) Proxy(req *http.Request) (*url.URL, error) {
+	r.mu.RLock()
+	lastRefresh := r.lastRefresh
+	r.mu.RUnlock()
+	if time.Since(lastRefresh) > time.Second {
+		if _,err := r.Refresh(); err != nil {
+			return nil,nil
+		}
+	}
 	proxies, err := r.ProxyForRequest(req.URL.String(), req.URL.Hostname())
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 	if len(proxies) == 0 {
 		return nil, nil
@@ -93,6 +101,9 @@ func (r *PAC) Proxy(req *http.Request) (*url.URL, error) {
 // Refresh fetches the PAC file
 // The boolean returned indicates if an update occurred
 func (r *PAC) Refresh() (bool, error) {
+	r.mu.Lock()
+	r.lastRefresh = time.Now()
+	r.mu.Unlock()
 	u, err := url.Parse(r.URL)
 	if err != nil {
 		return false, err
