@@ -136,5 +136,14 @@ func (s *Server) dialer(network, addr string) (net.Conn, error) {
 		Host:   purl,
 		Auth:   s.proxyAuth,
 	}
-	return dialer.DialContext(context.Background(), network, addr)
+	conn, err := dialer.DialContext(context.Background(), network, addr)
+	if err != nil {
+		var operr *net.OpError
+		if errors.As(err, &operr) {
+			s.logf("dialer: tcp connection to '%s' failed with '%v'. Dialing DIRECT", purl.Host, operr)
+			return net.Dial(network, addr)
+		}
+		return nil, err
+	}
+	return conn, nil
 }
