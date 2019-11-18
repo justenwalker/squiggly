@@ -44,7 +44,7 @@ func NewSPNEGO(c Credentials, krbconf string) (*SPNEGO, error) {
 	if err != nil {
 		return nil, err
 	}
-	cl := client.NewClientWithPassword(c.Username, c.Realm, c.Password, cfg)
+	cl := client.NewClientWithPassword(c.Username, c.Realm, c.Password, cfg, client.DisablePAFXFAST(true))
 	return &SPNEGO{cl: cl,creds: c}, nil
 }
 
