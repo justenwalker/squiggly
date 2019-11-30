@@ -22,7 +22,7 @@ import (
 type SPNEGO struct {
 	login int64
 	creds Credentials
-	cl *client.Client
+	cl    *client.Client
 }
 
 // NewSPNEGO creates a new SPNEGO authenticator
@@ -45,7 +45,7 @@ func NewSPNEGO(c Credentials, krbconf string) (*SPNEGO, error) {
 		return nil, err
 	}
 	cl := client.NewClientWithPassword(c.Username, c.Realm, c.Password, cfg, client.DisablePAFXFAST(true))
-	return &SPNEGO{cl: cl,creds: c}, nil
+	return &SPNEGO{cl: cl, creds: c}, nil
 }
 
 func (c *SPNEGO) Authorize(resp *http.Response, pc ProxyConnection) error {
@@ -60,11 +60,11 @@ func (c *SPNEGO) acquireCreds() error {
 	if c.login == 1 {
 		return nil
 	}
-	if !atomic.CompareAndSwapInt64(&c.login,0,1) {
+	if !atomic.CompareAndSwapInt64(&c.login, 0, 1) {
 		return nil
 	}
 	if err := c.cl.Login(); err != nil {
-		atomic.StoreInt64(&c.login,0)
+		atomic.StoreInt64(&c.login, 0)
 		return fmt.Errorf("could not acquire client credential (%s@%s): %v", c.creds.Username, c.creds.Realm, err)
 	}
 	return nil
@@ -73,7 +73,7 @@ func (c *SPNEGO) acquireCreds() error {
 // Header gets the Negotiate header authorizing the request
 func (c *SPNEGO) Header(proxy *url.URL) (string, error) {
 	if err := c.acquireCreds(); err != nil {
-		return "",err
+		return "", err
 	}
 	spn := getSPN(proxy)
 	s := spnego.SPNEGOClient(c.cl, spn)

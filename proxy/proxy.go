@@ -2,11 +2,13 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/justenwalker/squiggly/auth"
 	"net"
 	"net/http"
 	"net/url"
+
+	"github.com/justenwalker/squiggly/auth"
 
 	"github.com/justenwalker/squiggly/logging"
 	"gopkg.in/elazarl/goproxy.v1"

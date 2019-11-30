@@ -32,8 +32,8 @@ func TestProxyDialer(t *testing.T) {
 	}
 	dialer := &proxy.ProxyDialer{
 		Logger: testLogger{t},
-		Auth: auth,
-		Host: proxyHost,
+		Auth:   auth,
+		Host:   proxyHost,
 	}
 	client := http.Client{
 		Transport: &http.Transport{
