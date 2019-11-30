@@ -109,6 +109,7 @@ func (c *proxyConnection) Connect(auth string) (*http.Response, error) {
 func (d *ProxyDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	c, err := d.dialContext(ctx, network, host(d.Host))
 	if err != nil {
+		d.log("proxy tcp connect failed")
 		return nil, err
 	}
 	pc := &proxyConnection{
@@ -120,16 +121,18 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, addr string) (ne
 	resp, err := pc.Connect("")
 	// connection success
 	if err == nil {
+		d.log("proxy connect success")
 		return c, nil
 	}
 	// no response from proxy
 	if resp == nil {
+		d.log("proxy empty response")
 		c.Close()
 		return nil, err
 	}
 	// unexpected status from proxy
 	if resp.StatusCode != http.StatusProxyAuthRequired {
-		d.logf("Proxy Auth Status: %v", resp.Status)
+		d.logf("proxy unexpected status: %v", resp.Status)
 		c.Close()
 		return nil, err
 	}
@@ -137,10 +140,11 @@ func (d *ProxyDialer) DialContext(ctx context.Context, network, addr string) (ne
 	err = d.Auth.Authorize(resp, pc)
 	// proxy auth failed
 	if err != nil {
-		d.logf("Proxy Auth Failed: %v", err)
+		d.logf("proxy auth failed: %v", err)
 		c.Close()
 		return nil, err
 	}
+	d.log("proxy auth success")
 	// proxy auth success
 	return c, nil
 }
