@@ -84,8 +84,8 @@ func (r *PAC) Proxy(req *http.Request) (*url.URL, error) {
 	lastRefresh := r.lastRefresh
 	r.mu.RUnlock()
 	if time.Since(lastRefresh) > time.Second {
-		if _,err := r.Refresh(); err != nil {
-			return nil,nil
+		if _, err := r.Refresh(); err != nil {
+			return nil, nil
 		}
 	}
 	proxies, err := r.ProxyForRequest(req.URL.String(), req.URL.Hostname())

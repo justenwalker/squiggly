@@ -1,10 +1,15 @@
 package proxy
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"time"
+
+	"github.com/justenwalker/squiggly/auth"
 
 	"github.com/justenwalker/squiggly/logging"
 	"gopkg.in/elazarl/goproxy.v1"
@@ -15,8 +20,9 @@ type Server struct {
 	logger    logging.Logger
 	logWriter *logging.LogWriter
 	proxyFunc func(req *http.Request) (*url.URL, error)
-	proxyAuth *BasicAuth
+	proxyAuth *auth.Auth
 	server    *goproxy.ProxyHttpServer
+	dialer    *net.Dialer
 }
 
 func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
@@ -93,9 +99,6 @@ func (s *Server) proxy(req *http.Request) (*url.URL, error) {
 		return nil, nil
 	}
 	u, err := s.proxyFunc(req)
-	if u != nil {
-		s.auth(req)
-	}
 	if err == nil {
 		s.logf("PROXY SELECT: %v", u)
 	}
@@ -106,23 +109,18 @@ func (s *Server) proxy(req *http.Request) (*url.URL, error) {
 func New(opts ...Option) *Server {
 	srv := &Server{
 		server: goproxy.NewProxyHttpServer(),
-	}
-	srv.server.Tr = &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			u, err := srv.proxy(req)
-			if err != nil {
-				return nil, err
-			}
-			if u == nil {
-				return nil, nil
-			}
-			if srv.proxyAuth != nil {
-				u.User = url.UserPassword(srv.proxyAuth.Username, srv.proxyAuth.Password)
-			}
-			return u, nil
+		dialer: &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
 		},
 	}
-	srv.server.ConnectDial = srv.dialer
+	srv.server.Tr = &http.Transport{
+		DialContext:           srv.dialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	srv.server.ConnectDial = srv.dial
 	for _, opt := range opts {
 		opt(srv)
 	}
@@ -132,14 +130,11 @@ func New(opts ...Option) *Server {
 	return srv
 }
 
-func (s *Server) auth(req *http.Request) {
-	if s.proxyAuth == nil {
-		return
-	}
-	req.Header.Set("Proxy-Authorization", fmt.Sprintf("Basic %s", s.proxyAuth.Encoded()))
+func (s *Server) dial(network, addr string) (net.Conn, error) {
+	return s.dialContext(context.Background(), network, addr)
 }
 
-func (s *Server) dialer(network, addr string) (net.Conn, error) {
+func (s *Server) dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	purl, err := s.getProxyHost(addr)
 	if err != nil {
 		s.logf("dialer: getProxyHost ERROR: '%s'", err)
@@ -148,14 +143,23 @@ func (s *Server) dialer(network, addr string) (net.Conn, error) {
 	// Prevent upstream proxy from being re-directed
 	if purl == nil || purl.Host == addr {
 		s.logf("dialer: DIRECT -> ADDR '%s'", addr)
-		return net.Dial(network, addr)
+		return s.dialer.DialContext(ctx, network, addr)
 	}
 	s.logf("dialer: PROXY '%s' -> ADDR '%s'", purl.Host, addr)
-	dialer := s.server.NewConnectDialToProxyWithHandler(purl.String(), func(req *http.Request) {
-		s.auth(req)
-	})
-	if dialer == nil {
-		panic("nil dialer, invalid uri?")
+	dialer := &ProxyDialer{
+		Logger: s.logger,
+		Host:   purl,
+		Auth:   s.proxyAuth,
+		Dialer: s.dialer.DialContext,
 	}
-	return dialer(network, addr)
+	conn, err := dialer.DialContext(ctx, network, addr)
+	if err != nil {
+		var operr *net.OpError
+		if errors.As(err, &operr) {
+			s.logf("dialer: tcp connection to '%s' failed with '%v'. Dialing DIRECT", purl.Host, operr)
+			return s.dialer.DialContext(ctx, network, addr)
+		}
+		return nil, err
+	}
+	return conn, nil
 }

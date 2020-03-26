@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/justenwalker/squiggly/auth"
 	"log"
 	"os"
 
 	"github.com/howeyc/gopass"
-	"github.com/justenwalker/squiggly/proxy"
 	"github.com/spf13/cobra"
 	"github.com/zalando/go-keyring"
 )
@@ -41,18 +41,18 @@ func init() {
 	authCmd.Flags().StringVarP(&authUsername, "user", "u", defaultUser(), "user name, used to log into proxy servers")
 }
 
-func proxyAuth(service, username string) (*proxy.BasicAuth, error) {
+func proxyAuth(service, username string) (auth.Credentials, error) {
 	if service == "" {
-		return nil, fmt.Errorf("service name missing")
+		return auth.Credentials{}, fmt.Errorf("service name missing")
 	}
 	if username == "" {
-		return nil, fmt.Errorf("user name missing")
+		return auth.Credentials{}, fmt.Errorf("user name missing")
 	}
 	password, err := keyring.Get(service, username)
 	if err != nil {
-		return nil, err
+		return auth.Credentials{}, err
 	}
-	return &proxy.BasicAuth{Username: username, Password: password}, nil
+	return auth.Credentials{Username: username, Password: password}, nil
 }
 
 func promptPassword(username string) ([]byte, error) {
