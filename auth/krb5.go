@@ -2,9 +2,11 @@ package auth
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"strings"
 	"text/template"
@@ -27,18 +29,31 @@ includedir /etc/krb5.conf.d/
 
 [realms]
 {{ $realm }} = {
-{{- range .Domains }}
-	kdc = {{ . }}:88
-	master_kdc = {{ . }}:88
-	kpasswd = {{ . }}:464
-	kpasswd_server = {{ . }}:464
+{{- range .AdminServers }}
+	admin_server = {{ . }}
+{{- end }}
+{{- range .KDCMasters }}
+	master_kdc = {{ . }}
+{{- end }}
+{{- range .KDCS }}
+	kdc = {{ . }}
+{{- end }}
+{{- range .KDCS }}
+	kdc = {{ . }}
+{{- end }}
+{{- range .KPasswdServer }}
+	kpasswd_server = {{ . }}
 {{- end }}
 }
 `
 
 type realm struct {
-	Name    string
-	Domains []string
+	Name          string
+	Domains       []string
+	AdminServers  []string
+	KDCMasters    []string
+	KDCS          []string
+	KPasswdServer []string
 }
 
 func DiscoverKrb5Config(name string) (io.ReadCloser, error) {
@@ -61,18 +76,55 @@ func DiscoverKrb5Config(name string) (io.ReadCloser, error) {
 }
 
 func discoverRealm(name string) realm {
-	var r realm
+	var (
+		r     realm
+		addrs []*net.SRV
+		err   error
+	)
+	domains := make(map[string]struct{})
 	r.Name = strings.ToUpper(name)
-	addrs, err := net.LookupHost(name)
-	if err != nil {
-		return r
+	if addrs, err = lookupSRV("kerberos-master", "udp", name); err != nil {
+		log.Println("error looking up kerberos-masters:", err)
 	}
 	for _, addr := range addrs {
-		if names, err := net.LookupAddr(addr); err == nil {
-			for _, name := range names {
-				r.Domains = append(r.Domains, name)
-			}
-		}
+		r.KDCMasters = append(r.KDCMasters, fmt.Sprintf("%s:%d", addr.Target, addr.Port))
+		domains[strings.ToLower(addr.Target)] = struct{}{}
+	}
+	if addrs, err = lookupSRV("kerberos-adm", "tcp", name); err != nil {
+		log.Println("error looking up kerberos-adm:", err)
+	}
+	for _, addr := range addrs {
+		r.AdminServers = append(r.AdminServers, fmt.Sprintf("%s:%d", addr.Target, addr.Port))
+		domains[strings.ToLower(addr.Target)] = struct{}{}
+	}
+	if addrs, err = lookupSRV("kerberos", "udp", name); err != nil {
+		log.Println("error looking up KDCs:", err)
+	}
+	for _, addr := range addrs {
+		r.KDCS = append(r.KDCS, fmt.Sprintf("%s:%d", addr.Target, addr.Port))
+		domains[strings.ToLower(addr.Target)] = struct{}{}
+	}
+	if addrs, err = lookupSRV("kpasswd", "udp", name); err != nil {
+		log.Println("error looking up kpasswd servers:", err)
+	}
+	for _, addr := range addrs {
+		r.KPasswdServer = append(r.KPasswdServer, fmt.Sprintf("%s:%d", addr.Target, addr.Port))
+		domains[strings.ToLower(addr.Target)] = struct{}{}
+	}
+	for domain := range domains {
+		r.Domains = append(r.Domains, domain)
 	}
 	return r
+}
+
+func lookupSRV(service, proto, name string) ([]*net.SRV, error) {
+	_, addrs, err := net.LookupSRV(service, proto, name)
+	var dnserr *net.DNSError
+	if errors.As(err, &dnserr) {
+		if dnserr.IsNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return addrs, nil
 }

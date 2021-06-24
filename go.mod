@@ -1,6 +1,6 @@
 module github.com/justenwalker/squiggly
 
-go 1.12
+go 1.16
 
 require (
 	github.com/Azure/go-ntlmssp v0.0.0-20191115210519-2b2be6cc8ed4
