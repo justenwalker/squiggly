@@ -24,50 +24,9 @@ Set your password if you need to
 $ squiggly auth --user "yourusername"
 ```
 
-In your `.bashrc`, put something like this
+Download [scripts/squiggly.sh](./scripts/squiggly.sh), update the settings, and source it from your `.bashrc/.zshrc`
 
-```bash
-SQUIGGLY_PROXY_PORT=8800
-SQUIGGLY_PROXY_USERNAME=${PROXY_USERNAME:-"$USER"}
-SQUIGGLY_PAC_URL=http://example.com/proxy.pac
-SQUIGGLY_PIDFILE=$HOME/.squiggly
-SQUIGGLY_LOGFILE=$HOME/squiggly.log
-SQUIGGLY_KRB5_REALM=realm.example.com
-SQUIGGLY_KRB5_CONF=/etc/krb5.conf
-
-run_proxy() {
-  echo "Running Squiggly"
-  squiggly proxy \
-      --address "localhost:$SQUIGGLY_PROXY_PORT" \
-      --pac "http://wmtpac.wal-mart.com/proxies/anycast-universal.pac" \
-      --user "${SQUIGGLY_PROXY_USERNAME}" \
-      --realm "${SQUIGGLY_KRB5_REALM}" \
-      --krb5conf "${SQUIGGLY_KRB5_CONF}" \
-      --verbose > ${SQUIGGLY_LOGFILE} 2>&1 &
-  echo "$!" > $SQUIGGLY_PIDFILE
-  disown '%%'
-}
-
-if [ -r $SQUIGGLY_PIDFILE ]; then
-  PID=$(cat $SQUIGGLY_PIDFILE)
-  if ! ps -p $PID > /dev/null 2>&1; then
-    run_proxy
-  fi
-else
-  run_proxy
-fi
-
-# Set proxy environment variables
-export HTTP_PROXY=http://localhost:$SQUIGGLY_PROXY_PORT
-export HTTPS_PROXY=${HTTP_PROXY}
-export NO_PROXY="localhost,127.0.0.1,${HOST}"
-
-export http_proxy=${HTTP_PROXY}
-export https_proxy=${HTTP_PROXY}
-export no_proxy=${NO_PROXY}
-```
-
-After you open a new terminal, all your command-line application that support the standard proxy environment variables should start proxying through squiggly to your upstreams defined in the PAC.
+After you open a new terminal, you can run `squiggly_up` to start using the proxy, and `squiggly_down` to switch it off.
 
 ## Authenticate
 
@@ -108,7 +67,8 @@ Flags:
   -a, --address string    listen address for the proxy server (default "localhost:8800")
   -h, --help              help for proxy
   -k, --krb5conf string   kerberos config
-  -p, --pac string        url to the proxy auto config (PAC) file
+      --pac string        url to the proxy auto config (PAC) file
+  -p, --proxy string      the upstream HTTP Proxy
   -r, --realm string      realm for kerberos/negotiate authentication
   -s, --service string    service name, used to distinguish between auth configurations (default "squiggly")
   -u, --user string       user name, used to log into proxy servers. Omit to use an unauthenticated proxy.
