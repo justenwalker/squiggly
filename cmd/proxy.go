@@ -88,10 +88,13 @@ func runProxy() error {
 		if err != nil {
 			return err
 		}
-		cred.Realm = realm
-		sp, err := auth.NewSPNEGO(cred, krb5conf)
-		if err != nil {
-			return err
+		var sp *auth.SPNEGO
+		if realm != "" {
+			cred.Realm = realm
+			sp, err = auth.NewSPNEGO(cred, krb5conf)
+			if err != nil {
+				return err
+			}
 		}
 		pauth := auth.NewAuth(cred, sp)
 		options = append(options, proxy.ProxyAuth(pauth))

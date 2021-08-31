@@ -10,7 +10,6 @@ import (
 type Auth struct {
 	Logger  logging.Logger
 	cs      CredentialStore
-	krbconf string
 	spnego  *SPNEGO
 }
 
