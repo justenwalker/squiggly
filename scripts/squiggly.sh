@@ -33,7 +33,7 @@ SQUIGGLY_PROXY_ADDR="localhost:${SQUIGGLY_PROXY_PORT}"
 run_squiggly() {
   echo "Running Squiggly"
   _SQUIGGLY_ARGS=(--address "${SQUIGGLY_PROXY_ADDR}")
-  if [ -n "${KRB5_REALM}" ]; then
+  if [ -n "${SQUIGGLY_KRB5_REALM}" ]; then
     echo "- Realm: ${SQUIGGLY_KRB5_REALM}"
     _SQUIGGLY_ARGS+=(--realm "${SQUIGGLY_KRB5_REALM}")
     echo "- krb5.conf: ${SQUIGGLY_KRB5_CONF}"
